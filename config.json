@@ -1,20 +1,17 @@
 {
-  "site_name": "楽天ランキング急上昇ウォッチ",
-  "site_description": "楽天市場のジャンル別ランキングを毎日記録。急上昇・初登場・値下げ商品と順位の推移が一目でわかります。",
+  "site_name": "ふるさと納税 買い時チェッカー",
+  "site_description": "楽天ふるさと納税の人気返礼品を毎日記録。寄付額の値上げ・値下げ、過去最安、1kgあたりのコスパ、本当に売れ続けている定番品が一目でわかります。",
   "site_url": "https://matanemaboroshi.github.io/moremoney/",
-  "api_endpoint": "https://openapi.rakuten.co.jp/ichibaranking/api/IchibaItem/Ranking/20220601",
-  "pages_per_genre": 2,
-  "keep_days": 120,
-  "genres": [
-    {"id": "0", "slug": "all", "name": "総合"},
-    {"id": "100227", "slug": "food", "name": "食品"},
-    {"id": "100939", "slug": "beauty", "name": "美容・コスメ・香水"},
-    {"id": "562637", "slug": "electronics", "name": "家電"},
-    {"id": "100804", "slug": "interior", "name": "インテリア・寝具・収納"},
-    {"id": "215783", "slug": "daily", "name": "日用品雑貨・文房具・手芸"},
-    {"id": "101070", "slug": "outdoor", "name": "スポーツ・アウトドア"},
-    {"id": "100533", "slug": "baby", "name": "キッズ・ベビー・マタニティ"},
-    {"id": "101213", "slug": "pet", "name": "ペット・ペットグッズ"},
-    {"id": "100371", "slug": "ladies", "name": "レディースファッション"}
+  "search_endpoint": "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601",
+  "pages_per_category": 4,
+  "categories": [
+    {"slug": "meat", "name": "肉", "keyword": "ふるさと納税 肉", "per_kg": true},
+    {"slug": "seafood", "name": "魚介・海鮮", "keyword": "ふるさと納税 海鮮", "per_kg": true},
+    {"slug": "rice", "name": "米", "keyword": "ふるさと納税 米", "per_kg": true},
+    {"slug": "fruit", "name": "果物", "keyword": "ふるさと納税 フルーツ", "per_kg": true},
+    {"slug": "vegetable", "name": "野菜", "keyword": "ふるさと納税 野菜", "per_kg": true},
+    {"slug": "sweets", "name": "スイーツ", "keyword": "ふるさと納税 スイーツ", "per_kg": false},
+    {"slug": "alcohol", "name": "お酒", "keyword": "ふるさと納税 酒", "per_kg": false},
+    {"slug": "daily", "name": "日用品", "keyword": "ふるさと納税 日用品", "per_kg": false}
   ]
 }

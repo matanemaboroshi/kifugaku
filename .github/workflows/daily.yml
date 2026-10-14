@@ -30,13 +30,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Fetch rankings
+      - name: Fetch items
         if: github.event_name != 'push'
         env:
           RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
           RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
           RAKUTEN_AFFILIATE_ID: ${{ secrets.RAKUTEN_AFFILIATE_ID }}
-        run: python scripts/fetch_rankings.py
+        run: python scripts/fetch_items.py
 
       - name: Commit snapshots
         if: github.event_name != 'push'
