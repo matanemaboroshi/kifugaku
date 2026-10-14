@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: daily-update
@@ -20,9 +18,6 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +26,6 @@ jobs:
           python-version: "3.12"
 
       - name: Fetch items
-        if: github.event_name != 'push'
         env:
           RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
           RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
@@ -39,7 +33,6 @@ jobs:
         run: python scripts/fetch_items.py
 
       - name: Commit snapshots
-        if: github.event_name != 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -50,11 +43,14 @@ jobs:
       - name: Build site
         run: python scripts/build_site.py
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: public
-
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      # Publishing to the gh-pages branch lets GitHub Pages serve it without
+      # any extra repository settings (the branch is picked up automatically).
+      - name: Publish to gh-pages
+        run: |
+          cd public
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "site: $(TZ=Asia/Tokyo date +%F)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

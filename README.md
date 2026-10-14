@@ -14,9 +14,9 @@
 
 1. `scripts/fetch_items.py`：楽天の商品検索API（レビュー数順）で、カテゴリごとに返礼品を取得する。ショップコードが「f＋6桁の数字」の店（自治体）の商品だけを残し、`data/daily/<日付>.json` と `data/catalog.json` に保存する
 2. `scripts/build_site.py`：保存したデータから `public/` に静的サイトを作る
-3. `.github/workflows/daily.yml`：毎日の実行、データのコミット、GitHub Pagesへの公開
+3. `.github/workflows/daily.yml`：毎日の実行、データのコミット、`gh-pages` ブランチへの公開
 
-## 最初の設定（一度だけ、約15分）
+## 最初の設定（一度だけ）
 
 ### 1. 楽天のIDを取る
 1. [楽天アフィリエイト](https://affiliate.rakuten.co.jp/) にログインして、アフィリエイトIDを確認する
@@ -27,8 +27,7 @@
 ### 2. GitHubの設定
 1. リポジトリを **Public（公開）** にする（Settings → General → Danger Zone → Change visibility）
    - 無料プランでは、非公開のリポジトリからGitHub Pagesを公開できないため。Secretsに登録したIDは公開されない
-2. Settings → Pages → Build and deployment の Source を **GitHub Actions** にする
-3. Settings → Secrets and variables → Actions → New repository secret で、次の3つを登録する
+2. Settings → Secrets and variables → Actions → New repository secret で、次の3つを登録する
 
    | Name | 値 |
    |---|---|
@@ -36,10 +35,11 @@
    | `RAKUTEN_ACCESS_KEY` | アクセスキー |
    | `RAKUTEN_AFFILIATE_ID` | アフィリエイトID |
 
-4. このブランチを `main` にマージする（毎日の自動実行は、デフォルトブランチでしか動かない）
-5. Actions → daily-update → **Run workflow** で、1回目を手動で実行する
+3. Actions → daily-update → **Run workflow** で、1回目を手動で実行する
 
 公開URL：https://matanemaboroshi.github.io/moremoney/
+
+サイトは `gh-pages` ブランチに出力され、GitHub Pagesが自動で公開する。表示されない場合は Settings → Pages の Source を「Deploy from a branch」、ブランチを `gh-pages` / `(root)` にする。
 
 勢いと値上げ・値下げは、記録が2日分以上たまると表示される。最安値は7日分、定番は14日分たまると表示される。
 
