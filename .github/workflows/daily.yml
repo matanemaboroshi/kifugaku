@@ -43,7 +43,9 @@ jobs:
           git push
 
       - name: Build site
-        run: python scripts/build_site.py
+        run: |
+          pip install --quiet pillow
+          python scripts/build_site.py
 
       # Publishing to the gh-pages branch lets GitHub Pages serve it without
       # any extra repository settings (the branch is picked up automatically).

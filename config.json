@@ -1,6 +1,6 @@
 {
-  "site_name": "ふるさと納税 買い時チェッカー",
-  "site_description": "楽天ふるさと納税の人気返礼品を毎日記録。寄付額の値上げ・値下げ、過去最安、1kgあたりのコスパ、本当に売れ続けている定番品が一目でわかります。",
+  "site_name": "ふるさと納税 値上げ速報",
+  "site_description": "楽天ふるさと納税の人気返礼品の寄付額を毎日記録。値上げ・値下げの速報、1万円でもらえる量、残りの枠をぴったり使い切る組み合わせがわかります。",
   "site_url": "https://matanemaboroshi.github.io/moremoney/",
   "search_endpoints": [
     "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701",
