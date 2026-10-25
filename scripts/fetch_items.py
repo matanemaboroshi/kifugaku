@@ -147,10 +147,12 @@ def main():
         # name must contain a word typical of the category.
         match = re.compile(cat["match"]) if cat.get("match") else None
         exclude = re.compile(cat["exclude"]) if cat.get("exclude") else None
+        keywords = cat.get("keywords") or [cat["keyword"]]
+        pages = cat.get("pages", cfg["pages_per_category"])
         try:
-            for page in range(1, cfg["pages_per_category"] + 1):
+            for keyword, page in ((k, p) for k in keywords for p in range(1, pages + 1)):
                 data = request(cfg, {
-                    "keyword": cat["keyword"],
+                    "keyword": keyword,
                     "sort": "-reviewCount",
                     "hits": 30,
                     "page": page,
@@ -177,6 +179,8 @@ def main():
             failures += 1
             print(f"::error::{cat['name']} の取得に失敗: {e}")
         if rows:
+            # Several keywords are merged, so re-rank by review count.
+            rows.sort(key=lambda r: -r[2])
             daily[cat["slug"]] = rows
             print(f"{cat['name']}: {len(rows)}件")
 

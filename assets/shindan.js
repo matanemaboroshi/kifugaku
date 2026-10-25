@@ -3,7 +3,7 @@
 (function () {
   "use strict";
   var result = document.getElementById("result");
-  var form = document.querySelector(".shindan-form");
+  var form = document.querySelector(".finder");
   var input = document.getElementById("r");
   var items = null;
 
@@ -94,23 +94,19 @@
 
   function render(R, combos) {
     if (!combos.length) {
-      result.innerHTML = '<p class="note">' + yen(R) + '以内の返礼品が見つかりませんでした。金額を変えるか、カテゴリの絞り込みを外してください。</p>';
+      result.innerHTML = '<p class="note">' + yen(R) + '以内の返礼品が見つかりませんでした。金額かカテゴリの条件を変えてください。</p>';
       return;
     }
-    var html = '<h2>' + yen(R) + 'にぴったりの組み合わせ</h2><ol class="combos">';
+    var html = '<h2>' + yen(R) + 'の検索結果</h2><table class="combos"><thead><tr><th>合計</th><th>残り</th><th>返礼品</th></tr></thead><tbody>';
     combos.forEach(function (c) {
-      var tag = c.left === 0 ? '<span class="just">ぴったり</span>' : '<span class="left">残り ' + yen(c.left) + '</span>';
-      html += '<li class="combo"><div class="combo-head"><b>合計 ' + yen(c.total) + '</b>' + tag + '<small>' + c.items.length + '品</small></div><ul>';
+      html += '<tr><td class="c-total">' + yen(c.total) + '</td><td class="c-left' + (c.left === 0 ? ' zero' : '') + '">' + yen(c.left) + '</td><td><ul>';
       c.items.forEach(function (it) {
-        var img = it.i ? '<img src="' + esc(it.i) + '" alt="" loading="lazy" width="64" height="64">' : '<div class="noimg"></div>';
-        html += '<li><a class="ct" href="' + esc(it.u) + '" rel="sponsored nofollow noopener" target="_blank">' + img + '</a>' +
-          '<div><a class="cn" href="item/' + esc(it.h) + '.html">' + esc(it.n) + '</a>' +
-          '<div class="cm">' + esc(it.s) + '・<b>' + yen(it.p) + '</b></div>' +
-          '<a class="buy" href="' + esc(it.u) + '" rel="sponsored nofollow noopener" target="_blank">楽天で見る</a></div></li>';
+        var img = it.i ? '<img src="' + esc(it.i) + '" alt="" loading="lazy" width="48" height="48">' : '<span class="noimg"></span>';
+        html += '<li><a href="item/' + esc(it.h) + '.html">' + img + '<span><b>' + esc(it.n) + '</b><small>' + esc(it.s) + '・' + yen(it.p) + '</small></span></a></li>';
       });
-      html += '</ul></li>';
+      html += '</ul></td></tr>';
     });
-    html += '</ol><p class="intro">寄付額は記録時点のものです。申し込む前に各返礼品ページでご確認ください。</p>';
+    html += '</tbody></table><p class="lead">寄付額は記録時点のものです。申し込みの前に各返礼品ページでご確認ください。</p>';
     result.innerHTML = html;
   }
 
@@ -119,7 +115,7 @@
     if (!(R >= 1000)) return;
     var go = function () { render(R, search(R, selectedCats())); };
     if (items) return go();
-    result.innerHTML = '<p class="note">探しています…</p>';
+    result.innerHTML = '<p class="note">読み込み中です。</p>';
     fetch("data/items.json").then(function (r) { return r.json(); }).then(function (data) {
       items = data;
       go();
