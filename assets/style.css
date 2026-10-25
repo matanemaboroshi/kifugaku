@@ -148,7 +148,9 @@ h2 { font-size: 17px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2
 .vlabel { font-weight: 700; color: var(--brand); }
 .vimg img, .vimg .noimg { width: 96px; height: 96px; object-fit: contain; display: block; background: #fafafa; }
 .vbody p { margin: 0; }
-.vname { font-size: 14px; }
+.vshort { font-weight: 700; font-size: 16px; }
+.vname { font-size: 13px; color: var(--muted); }
+.vhist { display: inline-block; margin: 8px 0 0 12px; font-size: 13px; }
 .vshop { font-size: 12px; color: var(--muted); }
 .vprice { font-weight: 700; font-size: 17px; }
 .vprice small { font-weight: 400; font-size: 12px; color: var(--muted); }

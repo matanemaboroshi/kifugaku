@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["scripts/**", "assets/**", "config.json", ".github/workflows/daily.yml"]
+    # data/videos: the shorts pipeline adds one file per published video; rebuild the site right away.
+    paths: ["scripts/**", "assets/**", "config.json", "data/videos/**", ".github/workflows/daily.yml"]
 
 permissions:
   contents: write
@@ -21,13 +22,19 @@ jobs:
     if: github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
+      # Check out the branch tip, not the triggering commit: a queued rebuild must not publish data
+      # older than a snapshot committed while it waited.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # A push only rebuilds the site from the committed data; fetching stays once a day.
       - name: Fetch items
+        if: github.event_name != 'push'
         env:
           RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
           RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
@@ -35,17 +42,27 @@ jobs:
         run: python scripts/fetch_items.py
 
       - name: Commit snapshots
+        if: github.event_name != 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data
-          git diff --cached --quiet || git commit -m "data: $(TZ=Asia/Tokyo date +%F) snapshot"
-          git push
+          git diff --cached --quiet && exit 0
+          git commit -m "data: $(TZ=Asia/Tokyo date +%F) snapshot"
+          # shorts may add a video file at the same time; retry on top of it
+          for i in 1 2 3 4; do git push && exit 0; sleep $((i * 5)); git pull --rebase; done
+          exit 1
 
       - name: Build site
         run: |
           pip install --quiet pillow
           python scripts/build_site.py
+
+      # Stealth-marketing rule: every page (the per-video pages above all) starts with the PR notice.
+      - name: Check the PR notice
+        run: |
+          missing=$(find public -name "*.html" ! -name 404.html -print0 | xargs -0 grep -L "本ページはプロモーション" || true)
+          if [ -n "$missing" ]; then echo "PR notice missing:"; echo "$missing"; exit 1; fi
 
       # Publishing to the gh-pages branch lets GitHub Pages serve it without
       # any extra repository settings (the branch is picked up automatically).

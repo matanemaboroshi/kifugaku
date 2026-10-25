@@ -5,7 +5,7 @@ import json
 import re
 import shutil
 import unicodedata
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -21,6 +21,7 @@ CFG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 CATS = {c["slug"]: c for c in CFG["categories"]}
 SITE_URL = CFG["site_url"].rstrip("/") + "/"
 E = html.escape
+JST = timezone(timedelta(hours=9))
 
 
 # ---------- data ----------
@@ -45,8 +46,8 @@ QTY = re.compile(r"(計|合計|総量|総重量)?\s*(\d+(?:\.\d+)?)\s*(kg|キロ
 def parse_kg(name):
     """Best-effort total weight in kg from an item name, or None if unclear."""
     s = unicodedata.normalize("NFKC", name).replace("✕", "×").replace("ｘ", "×")
-    # "選べる" / ranges mean the listed price may not match the listed weight.
-    if re.search(r"選べる|選択|[~〜～]\s*\d", s):
+    # "選べる" / ranges / "1.8kg or 3.6kg" mean the listed price may not match the listed weight.
+    if re.search(r"選べる|選択|[~〜～]\s*\d|\d\s*(?:kg|g|キロ|グラム)?\s*(?:or|OR|または|もしくは)\s*\d", s):
         return None
     totals, explicit = set(), None
     for label, num, unit, mult in QTY.findall(s):
@@ -580,7 +581,14 @@ def feed(today, items, events7, catalog, n_snaps):
 
 def load_videos():
     vids = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((DATA / "videos").glob("*.json"))]
+    # the id becomes a file name and a URL: letters, digits and hyphens only (docs/shorts-integration.md)
+    vids = [v for v in vids if re.fullmatch(r"[0-9A-Za-z-]+", str(v.get("id", ""))) and v.get("published")]
     return sorted(vids, key=lambda v: v["published"], reverse=True)
+
+
+def video_is_public(v, now=None):
+    """Videos are scheduled ahead; list them only from their publish date (JST)."""
+    return v["published"] <= (now or datetime.now(JST)).date().isoformat()
 
 
 def build_video(v, by_code, catalog, today):
@@ -592,33 +600,42 @@ def build_video(v, by_code, catalog, today):
             continue
         label = entry.get("label") or f"{n}"
         price = f'{yen(it["price"])}<small>（{mmdd(today)}時点）</small>' if it else "<small>記録対象外のため、寄付額は返礼品ページでご確認ください。</small>"
+        history = f'<a class="vhist" href="../item/{E(it["slug"])}.html">寄付額の推移を見る</a>' if it else ""
+        short = f'<p class="vshort">{E(entry["name"])}</p>' if entry.get("name") else ""
         rows.append(f"""<li class="vrow">
   <span class="vlabel">{E(label)}</span>
   <a class="vimg" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">{thumb(info, 96)}</a>
   <div class="vbody">
+    {short}
     <p class="vname">{E(info["name"][:80])}</p>
     <p class="vshop">{E(info["shop"])}</p>
     <p class="vprice">{price}</p>
     <a class="btn small" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">楽天ふるさと納税で見る</a>
+    {history}
   </div>
 </li>""")
+    notes = "".join(f'<p class="status">{E(v[k])}</p>' for k in ("ranking", "note") if v.get(k))
+    watch = ""
+    if v.get("youtube_id") and video_is_public(v):
+        watch = f'<p><a href="https://www.youtube.com/shorts/{E(v["youtube_id"])}" rel="noopener" target="_blank">動画を見る（YouTube）</a></p>'
     body = f"""<h1>{E(v["title"])}</h1>
 <p class="status">動画の公開日 {E(v["published"])}</p>
+{notes}
 <ul class="vlist">{"".join(rows)}</ul>
-<p class="lead">寄付額は変わることがあります。申し込みの前に返礼品ページでご確認ください。</p>"""
+<p class="lead">寄付額は変わることがあります。申し込みの前に返礼品ページでご確認ください。</p>
+{watch}"""
     return page(f"{v['title']}｜紹介した返礼品", "動画で紹介した返礼品のリンクです。", f"v/{v['id']}.html", body, 1, noindex=True,
                 crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])])
 
 
 def build_video_index(videos):
-    rows = "".join(f'<li><a href="{E(v["id"])}.html">{E(v["title"])}</a><small>{E(v["published"])}</small></li>' for v in videos)
+    rows = "".join(f'<li><a href="{E(v["id"])}.html">{E(v["title"])}</a><small>{E(v["published"])}</small></li>'
+                   for v in videos if video_is_public(v))
     body = f"""<h1>動画で紹介した返礼品</h1>
 {f'<ul class="link-list">{rows}</ul>' if rows else '<p class="note">まだ動画はありません。</p>'}"""
     return page("動画で紹介した返礼品", "ショート動画で紹介した返礼品のリンク集です。", "v/index.html", body, 1, noindex=True,
                 crumbs=[(None, "動画で紹介した返礼品")])
 
-
-# ---------- share images ----------
 
 def make_ogp(rel, title, sub):
     """1200x630 share image in the site's light style. Skipped without Pillow or the font."""
