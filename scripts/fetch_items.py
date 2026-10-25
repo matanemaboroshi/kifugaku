@@ -61,14 +61,14 @@ def normalize(raw):
     }
 
 
-def request(cfg, params, creds):
-    params = dict(params, applicationId=creds["app_id"], accessKey=creds["access_key"],
-                  formatVersion=2, format="json")
-    if creds["affiliate_id"]:
-        params["affiliateId"] = creds["affiliate_id"]
-    url = cfg["search_endpoint"] + "?" + urllib.parse.urlencode(params)
+class NotFound(RuntimeError):
+    """The gateway does not know this endpoint path/version."""
+
+
+def call(endpoint, cfg, params):
+    url = endpoint + "?" + urllib.parse.urlencode(params)
     # The Rakuten API rejects requests whose Referer does not match the site
-    # URL registered for the application.
+    # registered for the application.
     req = urllib.request.Request(url, headers={
         "Referer": cfg["site_url"],
         "Origin": "{0.scheme}://{0.netloc}".format(urllib.parse.urlsplit(cfg["site_url"])),
@@ -80,6 +80,8 @@ def request(cfg, params, creds):
                 return json.loads(res.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", "replace")[:300]
+            if e.code == 404 or "API Configuration not found" in body:
+                raise NotFound(f"HTTP {e.code}: {body}") from e
             if e.code in (429, 500, 503) and attempt < 3:
                 time.sleep(2 ** (attempt + 1))
                 continue
@@ -89,6 +91,36 @@ def request(cfg, params, creds):
                 time.sleep(2 ** (attempt + 1))
                 continue
             raise
+
+
+_endpoint = None
+
+
+def request(cfg, params, creds):
+    """Call the item search API, settling on the first endpoint that exists."""
+    global _endpoint
+    params = dict(params, applicationId=creds["app_id"], accessKey=creds["access_key"],
+                  formatVersion=2, format="json")
+    if creds["affiliate_id"]:
+        params["affiliateId"] = creds["affiliate_id"]
+    candidates = [_endpoint] if _endpoint else cfg["search_endpoints"]
+    last = None
+    for endpoint in candidates:
+        try:
+            data = call(endpoint, cfg, params)
+        except NotFound as e:
+            print(f"::warning::{endpoint} は利用できません: {e}")
+            last = e
+            continue
+        if _endpoint is None:
+            _endpoint = endpoint
+            print(f"使用するAPI: {endpoint}")
+            items = data.get("Items") or []
+            if items:
+                first = items[0].get("Item", items[0])
+                print("レスポンス項目:", ", ".join(sorted(first.keys())))
+        return data
+    raise last or RuntimeError("search_endpoints が空です")
 
 
 def main():

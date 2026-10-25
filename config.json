@@ -2,7 +2,11 @@
   "site_name": "ふるさと納税 買い時チェッカー",
   "site_description": "楽天ふるさと納税の人気返礼品を毎日記録。寄付額の値上げ・値下げ、過去最安、1kgあたりのコスパ、本当に売れ続けている定番品が一目でわかります。",
   "site_url": "https://matanemaboroshi.github.io/moremoney/",
-  "search_endpoint": "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601",
+  "search_endpoints": [
+    "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701",
+    "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401",
+    "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601"
+  ],
   "pages_per_category": 4,
   "categories": [
     {"slug": "meat", "name": "肉", "keyword": "ふるさと納税 肉", "per_kg": true},
