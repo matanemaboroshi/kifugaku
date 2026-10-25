@@ -143,6 +143,10 @@ def main():
     daily, seen, failures = {}, set(), 0
     for cat in cfg["categories"]:
         rows = []
+        # Keyword search also hits unrelated items (e.g. beer for "米"), so the
+        # name must contain a word typical of the category.
+        match = re.compile(cat["match"]) if cat.get("match") else None
+        exclude = re.compile(cat["exclude"]) if cat.get("exclude") else None
         try:
             for page in range(1, cfg["pages_per_category"] + 1):
                 data = request(cfg, {
@@ -154,6 +158,10 @@ def main():
                 }, creds)
                 for item in map(normalize, data.get("Items", [])):
                     if not MUNICIPALITY_SHOP.match(item["shop_code"]) or item["code"] in seen:
+                        continue
+                    if match and not match.search(item["name"]):
+                        continue
+                    if exclude and exclude.search(item["name"]):
                         continue
                     seen.add(item["code"])
                     rows.append([item["code"], item["price"], item["review_count"]])

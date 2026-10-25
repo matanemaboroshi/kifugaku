@@ -32,21 +32,26 @@ def load():
     return catalog, snaps
 
 
-QTY = re.compile(r"(\d+(?:\.\d+)?)\s*(kg|キロ|g|グラム)(?:\s*[×x]\s*(\d+))?", re.I)
+QTY = re.compile(r"(計|合計|総量|総重量)?\s*(\d+(?:\.\d+)?)\s*(kg|キロ|g|グラム)(?:\s*[×x]\s*(\d+))?", re.I)
 
 
 def parse_kg(name):
     """Best-effort total weight in kg from an item name, or None if unclear."""
     s = unicodedata.normalize("NFKC", name).replace("✕", "×").replace("ｘ", "×")
-    # "選べる" / ranges mean the listed price may not match the largest weight.
+    # "選べる" / ranges mean the listed price may not match the listed weight.
     if re.search(r"選べる|選択|[~〜～]\s*\d", s):
         return None
-    best = None
-    for num, unit, mult in QTY.findall(s):
+    totals, explicit = set(), None
+    for label, num, unit, mult in QTY.findall(s):
         kg = float(num) / (1 if unit.lower() in ("kg", "キロ") else 1000)
-        kg *= int(mult) if mult else 1
-        best = kg if best is None else max(best, kg)
-    return best if best and 0.1 <= best <= 60 else None
+        kg = round(kg * (int(mult) if mult else 1), 3)
+        totals.add(kg)
+        if label and explicit is None:
+            explicit = kg
+    # Several different weights (e.g. "900g/1.8kg/2.8kg") are size options:
+    # the price shown belongs to only one of them, so give up.
+    kg = explicit if explicit is not None else (totals.pop() if len(totals) == 1 else None)
+    return kg if kg and 0.1 <= kg <= 60 else None
 
 
 def slug_of(code):
