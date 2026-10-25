@@ -173,7 +173,10 @@ def badges(it):
 def stars(avg, count):
     if not count:
         return ""
-    return f'<span class="review">★{avg:.1f}<small>（{count:,}）</small></span>'
+    # as recorded (4.79, not 4.8): the videos show the same value
+    shown = f"{float(avg or 0):.2f}".rstrip("0")
+    shown += "0" if shown.endswith(".") else ""
+    return f'<span class="review">★{shown}<small>（{count:,}）</small></span>'
 
 
 def chart_svg(points, label, fmt, invert=False, flat_note=""):
