@@ -5,7 +5,7 @@ import json
 import re
 import shutil
 import unicodedata
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -21,6 +21,7 @@ CFG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 CATS = {c["slug"]: c for c in CFG["categories"]}
 SITE_URL = CFG["site_url"].rstrip("/") + "/"
 E = html.escape
+JST = timezone(timedelta(hours=9))
 
 
 # ---------- data ----------
@@ -45,8 +46,8 @@ QTY = re.compile(r"(計|合計|総量|総重量)?\s*(\d+(?:\.\d+)?)\s*(kg|キロ
 def parse_kg(name):
     """Best-effort total weight in kg from an item name, or None if unclear."""
     s = unicodedata.normalize("NFKC", name).replace("✕", "×").replace("ｘ", "×")
-    # "選べる" / ranges mean the listed price may not match the listed weight.
-    if re.search(r"選べる|選択|[~〜～]\s*\d", s):
+    # "選べる" / ranges / "1.8kg or 3.6kg" mean the listed price may not match the listed weight.
+    if re.search(r"選べる|選択|[~〜～]\s*\d|\d\s*(?:kg|g|キロ|グラム)?\s*(?:or|OR|または|もしくは)\s*\d", s):
         return None
     totals, explicit = set(), None
     for label, num, unit, mult in QTY.findall(s):
@@ -172,7 +173,10 @@ def badges(it):
 def stars(avg, count):
     if not count:
         return ""
-    return f'<span class="review">★{avg:.1f}<small>（{count:,}）</small></span>'
+    # as recorded (4.79, not 4.8): the videos show the same value
+    shown = f"{float(avg or 0):.2f}".rstrip("0")
+    shown += "0" if shown.endswith(".") else ""
+    return f'<span class="review">★{shown}<small>（{count:,}）</small></span>'
 
 
 def chart_svg(points, label, fmt, invert=False, flat_note=""):
@@ -220,7 +224,8 @@ def chart_svg(points, label, fmt, invert=False, flat_note=""):
 NAV = [("index.html", "トップ"), ("changes.html", "値下げ情報"), ("shindan.html", "残り枠から探す"), ("ryou.html", "1万円あたりの量")]
 
 
-def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.png", noindex=False, scripts="", crumbs=None):
+def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.png", noindex=False, scripts="", crumbs=None,
+         body_class="", head=""):
     up = "../" * depth
     canonical = SITE_URL + path
     ld = f'<script type="application/ld+json">{json.dumps(jsonld, ensure_ascii=False)}</script>' if jsonld else ""
@@ -254,8 +259,9 @@ def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.pn
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="{up}assets/style.css">
 {ld}
+{head}
 </head>
-<body>
+<body{f' class="{body_class}"' if body_class else ""}>
 <header class="site">
   <div class="head">
     <a class="logo" href="{up}index.html"><span class="logo-sub">楽天ふるさと納税の寄付額を毎日記録</span>{E(CFG["site_name"])}</a>
@@ -367,7 +373,7 @@ def cat_grid(items, up):
 
 # ---------- pages ----------
 
-def build_index(today, items, events7, catalog):
+def build_index(today, items, events7, catalog, videos=()):
     days = max(i["tracked"] for i in items)
     sales = [e for e in events7 if e["new"] < e["old"]]
     teiban = sorted([i for i in items if i["teiban"]], key=lambda i: -i["reviews"])[:8]
@@ -385,6 +391,7 @@ def build_index(today, items, events7, catalog):
 </section>
 <p class="status">最終更新 {mmdd(today)} 6:00 ／ 記録 {days}日目 ／ {len(items):,}品を記録中 ／ 直近7日の値下げ {len(sales)}件</p>
 <section><h2>値下げされた返礼品（直近7日）</h2>{sale_html}</section>
+{video_teaser(videos)}
 <section><h2>カテゴリから探す</h2>{cat_grid(items, "")}</section>
 {section("寄付額1万円あたりの量が多い返礼品", best_ryou, "", "対象の返礼品がありません。", lambda i: f'{CATS[i["cat"]]["name"]}：{ryou_note(i)}',
          "カテゴリごとの1位です。量は返礼品名の記載から算出した目安です。", '<a href="ryou.html">カテゴリ別に見る</a>')}
@@ -392,6 +399,17 @@ def build_index(today, items, events7, catalog):
 {section("定番の返礼品", teiban, "", TEIBAN_WAIT, None, f"直近{TEIBAN_WINDOW}日のうち{int(TEIBAN_RATIO * 100)}%以上の日でカテゴリ上位に入った返礼品です。")}"""
     title = f"{CFG['site_name']}｜楽天ふるさと納税の値下げ情報・残り枠から探す"
     return page(title, CFG["site_description"], "", body, 0, ogp="ogp/index.png")
+
+
+def video_teaser(videos, limit=3):
+    """Latest public videos on the top page, so site visitors find the channel and back."""
+    vids = [v for v in videos if video_is_public(v)][:limit]
+    if not vids:
+        return ""
+    rows = "".join(f'<li><a href="v/{E(v["id"])}.html"><b>{E(v["title"])}</b><small>{E(v["published"])}</small></a></li>' for v in vids)
+    return f"""<section class="vteaser"><h2>ショート動画で紹介した返礼品</h2>
+<ul class="vmore">{rows}</ul>
+<p class="more"><a href="v/index.html">動画で紹介した返礼品をすべて見る</a></p></section>"""
 
 
 def build_category(c, today, items):
@@ -580,45 +598,127 @@ def feed(today, items, events7, catalog, n_snaps):
 
 def load_videos():
     vids = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((DATA / "videos").glob("*.json"))]
+    # the id becomes a file name and a URL: letters, digits and hyphens only (docs/shorts-integration.md)
+    vids = [v for v in vids if re.fullmatch(r"[0-9A-Za-z-]+", str(v.get("id", ""))) and v.get("published")]
     return sorted(vids, key=lambda v: v["published"], reverse=True)
 
 
-def build_video(v, by_code, catalog, today):
+def video_is_public(v, now=None):
+    """Videos are scheduled ahead; list them only from their publish date (JST)."""
+    return v["published"] <= (now or datetime.now(JST)).date().isoformat()
+
+
+# Per-video pages look like the videos (navy background, extra-bold serif ranks, red/green/blue
+# frames) so a viewer coming from the channel profile knows at once they are in the right place.
+VIDEO_HEAD = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
+              '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+              '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&display=swap">')
+
+
+def yt_url(v):
+    return f"https://www.youtube.com/shorts/{v['youtube_id']}" if v.get("youtube_id") else ""
+
+
+def video_rows(v, by_code, catalog, today):
     rows = []
     for n, entry in enumerate(v["items"], 1):
         it = by_code.get(entry["code"])
         info = it or catalog.get(entry["code"])
         if not info:
             continue
-        label = entry.get("label") or f"{n}"
-        price = f'{yen(it["price"])}<small>（{mmdd(today)}時点）</small>' if it else "<small>記録対象外のため、寄付額は返礼品ページでご確認ください。</small>"
-        rows.append(f"""<li class="vrow">
-  <span class="vlabel">{E(label)}</span>
-  <a class="vimg" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">{thumb(info, 96)}</a>
-  <div class="vbody">
-    <p class="vname">{E(info["name"][:80])}</p>
-    <p class="vshop">{E(info["shop"])}</p>
-    <p class="vprice">{price}</p>
-    <a class="btn small" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">楽天ふるさと納税で見る</a>
+        label = entry.get("label") or f"{n}位"
+        short = entry.get("name") or info["name"][:24]
+        if it:
+            old = f'<s>{yen(it["prev_price"])}</s>' if it["change"] < 0 and it["prev_price"] else ""
+            price = f'<p class="vprice">{old}{yen(it["price"])}<small>{mmdd(today)}時点</small></p>'
+            per = f'<p class="vper">1万円あたり 約{kg_per_10k(it):g}kg（目安）</p>' if it.get("per_kg") else ""
+            meta = f'<div class="vmeta">{badges(it)}{stars(it["review_avg"], it["reviews"])}</div>'
+            hist = f'<a class="vhist" href="../item/{E(it["slug"])}.html">寄付額の推移を見る ›</a>'
+        else:
+            price = '<p class="vprice"><small>記録対象外のため、寄付額は返礼品ページでご確認ください。</small></p>'
+            per = meta = hist = ""
+        rows.append(f"""<li class="vcard">
+  <p class="vrank">{E(label)}</p>
+  <div class="vgrid">
+    <a class="vimg" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">{thumb(info, 120)}</a>
+    <div class="vbody">
+      <p class="vshop">{E(info["shop"])}</p>
+      <p class="vshort">{E(short)}</p>
+      {meta}
+      {price}
+      {per}
+    </div>
   </div>
+  <p class="vname">{E(info["name"][:90])}</p>
+  <a class="vbtn" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">楽天ふるさと納税で見る</a>
+  {hist}
 </li>""")
-    body = f"""<h1>{E(v["title"])}</h1>
-<p class="status">動画の公開日 {E(v["published"])}</p>
-<ul class="vlist">{"".join(rows)}</ul>
-<p class="lead">寄付額は変わることがあります。申し込みの前に返礼品ページでご確認ください。</p>"""
+    return rows
+
+
+def video_more(videos, current_id=None, limit=3):
+    others = [o for o in videos if video_is_public(o) and o["id"] != current_id][:limit]
+    vids = "".join(f'<li><a href="{E(o["id"])}.html"><b>{E(o["title"])}</b><small>{E(o["published"])}</small></a></li>' for o in others)
+    vids = f'<h2 class="vh2">ほかの動画で紹介した返礼品</h2><ul class="vmore">{vids}</ul>' if vids else ""
+    return f"""{vids}
+<h2 class="vh2">サイトでもっと探す</h2>
+<ul class="vjump">
+  <li><a href="../changes.html"><b>値下げ情報</b><small>前日より寄付額が下がった返礼品</small></a></li>
+  <li><a href="../ryou.html"><b>1万円あたりの量</b><small>肉・魚介・米・果物・野菜</small></a></li>
+  <li><a href="../shindan.html"><b>残り枠から探す</b><small>金額を入れると組み合わせを表示</small></a></li>
+</ul>"""
+
+
+def build_video(v, by_code, catalog, today, videos=()):
+    rows = video_rows(v, by_code, catalog, today)
+    notes = "".join(f'<p class="vnote">{E(v[k])}</p>' for k in ("ranking", "note") if v.get(k))
+    watch = ""
+    if yt_url(v) and video_is_public(v):
+        watch = f'<a class="vwatch" href="{E(yt_url(v))}" rel="noopener" target="_blank">▶ 動画をもう一度見る</a>'
+    body = f"""<section class="vhero">
+  <p class="vkicker">ショート動画で紹介した返礼品</p>
+  <h1>{E(v["title"])}</h1>
+  {notes}
+  <p class="vnote">動画の公開日 {E(v["published"])}</p>
+  {watch}
+</section>
+<ol class="vlist">{"".join(rows)}</ol>
+<p class="lead">寄付額は変わることがあります。申し込みの前に返礼品ページでご確認ください。</p>
+{video_more(list(videos), v["id"])}"""
     return page(f"{v['title']}｜紹介した返礼品", "動画で紹介した返礼品のリンクです。", f"v/{v['id']}.html", body, 1, noindex=True,
-                crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])])
+                crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])], body_class="vpage", head=VIDEO_HEAD)
 
 
-def build_video_index(videos):
-    rows = "".join(f'<li><a href="{E(v["id"])}.html">{E(v["title"])}</a><small>{E(v["published"])}</small></li>' for v in videos)
-    body = f"""<h1>動画で紹介した返礼品</h1>
-{f'<ul class="link-list">{rows}</ul>' if rows else '<p class="note">まだ動画はありません。</p>'}"""
+def build_video_index(videos, by_code=None, catalog=None):
+    by_code, catalog = by_code or {}, catalog or {}
+    cards = []
+    for v in videos:
+        if not video_is_public(v):
+            continue
+        thumbs = []
+        for entry in v["items"][:3]:
+            info = by_code.get(entry["code"]) or catalog.get(entry["code"])
+            if info:
+                thumbs.append(f'<span class="vt">{thumb(info, 96)}<small>{E(entry.get("label", ""))}</small></span>')
+        cards.append(f"""<li class="vcard vindex">
+  <a href="{E(v["id"])}.html">
+    <p class="vdate">{E(v["published"])}</p>
+    <p class="vtitle">{E(v["title"])}</p>
+    <span class="vthumbs">{"".join(thumbs)}</span>
+    <span class="vbtn">紹介した返礼品を見る</span>
+  </a>
+</li>""")
+    lst = f'<ol class="vlist">{"".join(cards)}</ol>' if cards else '<p class="note">まだ動画はありません。</p>'
+    body = f"""<section class="vhero">
+  <p class="vkicker">YouTube ショートで紹介した返礼品</p>
+  <h1>動画で紹介した返礼品</h1>
+  <p class="vnote">新しい動画から順に並んでいます。寄付額は毎朝の記録で更新されます。</p>
+</section>
+{lst}
+{video_more([], None)}"""
     return page("動画で紹介した返礼品", "ショート動画で紹介した返礼品のリンク集です。", "v/index.html", body, 1, noindex=True,
-                crumbs=[(None, "動画で紹介した返礼品")])
+                crumbs=[(None, "動画で紹介した返礼品")], body_class="vpage", head=VIDEO_HEAD)
 
-
-# ---------- share images ----------
 
 def make_ogp(rel, title, sub):
     """1200x630 share image in the site's light style. Skipped without Pillow or the font."""
@@ -684,7 +784,8 @@ def main():
         write("index.html", build_empty())
     else:
         by_code = {i["code"]: i for i in items}
-        write("index.html", build_index(today, items, events7, catalog))
+        videos = load_videos() if (DATA / "videos").exists() else []
+        write("index.html", build_index(today, items, events7, catalog, videos))
         write("changes.html", build_changes(today, events30, catalog, len(snaps)))
         write("shindan.html", build_shindan(today))
         write("ryou.html", build_ryou(today, items))
@@ -702,10 +803,9 @@ def main():
         write("data/items.json", json.dumps(planner_data(items), ensure_ascii=False, separators=(",", ":")))
         write("api/feed.json", json.dumps(feed(today, items, events7, catalog, len(snaps)), ensure_ascii=False, indent=1))
 
-        videos = load_videos() if (DATA / "videos").exists() else []
         for v in videos:
-            write(f"v/{v['id']}.html", build_video(v, by_code, catalog, today))
-        write("v/index.html", build_video_index(videos))
+            write(f"v/{v['id']}.html", build_video(v, by_code, catalog, today, videos))
+        write("v/index.html", build_video_index(videos, by_code, catalog))
 
     lastmod = today or date.today().isoformat()
     sitemap = "".join(f"<url><loc>{E(SITE_URL + u)}</loc><lastmod>{lastmod}</lastmod></url>" for u in urls)

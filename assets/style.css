@@ -141,17 +141,58 @@ h2 { font-size: 17px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2
 .chart .line polyline { fill: none; stroke: var(--brand); stroke-width: 3; }
 .chart .dots circle { fill: var(--brand); }
 
-/* video pages */
-.vlist { list-style: none; margin: 12px 0; padding: 0; background: var(--white); border: 1px solid var(--line); }
-.vrow { display: grid; grid-template-columns: 4em 96px 1fr; gap: 12px; padding: 12px; border-bottom: 1px solid var(--line); align-items: start; }
-.vrow:last-child { border-bottom: 0; }
-.vlabel { font-weight: 700; color: var(--brand); }
-.vimg img, .vimg .noimg { width: 96px; height: 96px; object-fit: contain; display: block; background: #fafafa; }
+/* video pages: same look as the shorts (navy, extra-bold serif ranks, red / green / blue frames) */
+.vpage { --navy: #0b1230; --navy-2: #1b2a5c; --v-red: #e43d30; --v-green: #3ec24a; --v-blue: #3b4cc0; background: #eceef4; }
+.vpage .pr { display: block; max-width: none; margin: 0; padding: 8px 16px; background: #fff; color: #111; font-weight: 700; font-size: 12px;
+  border-bottom: 1px solid var(--line); text-align: center; }
+.vpage main { padding-top: 0; }
+.vpage .crumbs { padding: 8px 0; }
+.vhero { margin: 0 -16px; padding: 20px 16px 22px; color: #fff; text-align: center;
+  background: radial-gradient(120% 100% at 15% 0%, var(--navy-2) 0%, var(--navy) 55%, #050817 100%); }
+.vkicker { display: inline-block; margin: 0 0 10px; padding: 2px 12px; font-size: 12px; font-weight: 700; color: #111; background: #ffd23c; border-radius: 999px; }
+.vhero h1 { margin: 0 0 10px; font-family: "Noto Serif JP", serif; font-weight: 900; font-size: 26px; line-height: 1.35; color: #fff;
+  text-wrap: balance; word-break: auto-phrase; -webkit-text-stroke: 5px #000; paint-order: stroke fill; }
+.vnote { margin: 2px 0 0; font-size: 12px; color: #c9cfe0; }
+.vwatch { display: inline-block; margin-top: 12px; padding: 8px 18px; border-radius: 999px; background: #fff; color: #111; font-weight: 700; font-size: 14px; text-decoration: none; }
+.vlist { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 16px; }
+.vcard { position: relative; background: #fff; border: 6px solid var(--v-red); padding: 34px 14px 14px; box-shadow: 0 4px 0 rgba(0,0,0,.18); margin-top: 14px; }
+.vcard:nth-child(3n+2) { border-color: var(--v-green); }
+.vcard:nth-child(3n) { border-color: var(--v-blue); }
+.vrank { position: absolute; left: 10px; top: -26px; margin: 0; font-family: "Noto Serif JP", serif; font-weight: 900; font-size: 36px; line-height: 1;
+  color: #fff; -webkit-text-stroke: 8px #111; paint-order: stroke fill; letter-spacing: .02em; }
+.vcard:first-child .vrank { color: #ffd23c; font-size: 42px; top: -30px; }
+.vgrid { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: start; }
+.vimg img, .vimg .noimg { width: 120px; height: 120px; object-fit: contain; display: block; background: #f6f7f9; border: 1px solid var(--line); }
 .vbody p { margin: 0; }
-.vname { font-size: 14px; }
 .vshop { font-size: 12px; color: var(--muted); }
-.vprice { font-weight: 700; font-size: 17px; }
-.vprice small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.vshort { font-family: "Noto Serif JP", serif; font-weight: 900; font-size: 20px; line-height: 1.3; color: #111; }
+.vmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 4px 0; }
+.vprice { font-weight: 800; font-size: 24px; color: var(--sale); font-variant-numeric: tabular-nums; line-height: 1.3; }
+.vprice s { font-size: 13px; font-weight: 400; color: var(--muted); margin-right: 6px; }
+.vprice small { display: inline-block; margin-left: 6px; font-weight: 400; font-size: 12px; color: var(--muted); }
+.vper { font-size: 13px; font-weight: 700; color: var(--brand); }
+.vname { margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vbtn { display: block; margin-top: 12px; padding: 14px; text-align: center; background: var(--sale); color: #fff; font-weight: 800; font-size: 16px;
+  text-decoration: none; border-radius: 6px; box-shadow: 0 4px 0 #7a0a0e; }
+.vbtn:hover { filter: brightness(.95); }
+.vbtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #7a0a0e; }
+.vhist { display: block; margin-top: 10px; text-align: center; font-size: 13px; font-weight: 700; }
+.vindex { padding-top: 14px; }
+.vindex a { display: block; color: var(--text); text-decoration: none; }
+.vdate { margin: 0; font-size: 12px; color: var(--muted); }
+.vtitle { margin: 2px 0 10px; font-family: "Noto Serif JP", serif; font-weight: 900; font-size: 19px; line-height: 1.4; }
+.vthumbs { display: flex; gap: 8px; }
+.vt { position: relative; display: block; flex: 1; max-width: 96px; }
+.vt img, .vt .noimg { width: 100%; aspect-ratio: 1; height: auto; object-fit: contain; background: #f6f7f9; border: 1px solid var(--line); display: block; }
+.vt small { position: absolute; left: 4px; top: 4px; padding: 0 6px; background: #111; color: #fff; font-size: 11px; font-weight: 700; }
+.vh2 { font-size: 16px; border-bottom-color: var(--navy); }
+.vmore, .vjump { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid var(--line); }
+.vmore li, .vjump li { border-bottom: 1px solid var(--line); }
+.vmore li:last-child, .vjump li:last-child { border-bottom: 0; }
+.vmore a, .vjump a { position: relative; display: block; padding: 12px 34px 12px 14px; color: var(--text); text-decoration: none; }
+.vmore a::after, .vjump a::after { content: "›"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 22px; }
+.vmore b, .vjump b { display: block; font-size: 15px; }
+.vmore small, .vjump small { display: block; font-size: 12px; color: var(--muted); }
 .link-list { list-style: none; padding: 0; margin: 12px 0; background: var(--white); border: 1px solid var(--line); }
 .link-list li { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; }
 .link-list small { color: var(--muted); white-space: nowrap; }
@@ -174,9 +215,8 @@ footer.site a { color: var(--muted); }
   .item-head { grid-template-columns: 1fr; }
   .item-img { max-width: 320px; margin: 0 auto; }
   h1 { font-size: 20px; }
-  .vrow { grid-template-columns: 72px 1fr; }
-  .vlabel { grid-column: 1 / -1; }
-  .vimg img, .vimg .noimg { width: 72px; height: 72px; }
+  .vgrid { grid-template-columns: 104px 1fr; gap: 12px; }
+  .vimg img, .vimg .noimg { width: 104px; height: 104px; }
   .sale thead { display: none; }
   .sale td { padding: 8px; }
   .t-img { width: 56px; }
