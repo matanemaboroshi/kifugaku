@@ -4,7 +4,7 @@
 
 ## 1. データ：`api/feed.json`
 
-公開URL：`https://matanemaboroshi.github.io/moremoney/api/feed.json`（毎朝6時ごろ更新）
+公開URL：`https://matanemaboroshi.github.io/kifugaku/api/feed.json`（毎朝6時ごろ更新）
 
 | キー | 中身 |
 |---|---|
@@ -79,5 +79,8 @@
 チャンネルのプロフィールのリンクには、この一覧ページを設定する。
 
 ## 3. 商品データの取り込み
+
+`data/catalog.json` の各返礼品には、`image`（1枚目の画像）のほかに `images`（楽天の商品検索 API が返す画像すべて、最大3枚）が入る。ショート動画側はこの中から、人物・文字・デザインの入っていない1枚を選んで使う。
+
 
 ショート動画側は、このリポジトリの `config.json`・`data/catalog.json`・`data/daily/` を直接読み、動画用の商品データを作る（shorts の `pipeline/video/moremoney.py`）。項目名や形を変えるときは、shorts 側も合わせて直す。重さの読み取り（`parse_kg`）は両方で同じ規則にしてある。

@@ -1,7 +1,7 @@
 {
   "site_name": "ふるさと納税 寄付額チェッカー",
   "site_description": "楽天ふるさと納税の人気返礼品の寄付額を毎日記録しています。値下げされた返礼品、控除上限の残りで選べる組み合わせ、寄付額1万円あたりの量を確認できます。",
-  "site_url": "https://matanemaboroshi.github.io/moremoney/",
+  "site_url": "https://matanemaboroshi.github.io/kifugaku/",
   "search_endpoints": [
     "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701",
     "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401",
