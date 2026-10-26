@@ -22,7 +22,7 @@
 ### 1. 楽天のIDを取る
 1. [楽天アフィリエイト](https://affiliate.rakuten.co.jp/) にログインして、アフィリエイトIDを確認する
 2. [Rakuten Developers](https://webservice.rakuten.co.jp/) でアプリを新しく登録する
-   - アプリのURL（WebサイトURL）には `https://matanemaboroshi.github.io/moremoney/` を入れる
+   - アプリのURL（WebサイトURL）には `https://matanemaboroshi.github.io/kifugaku/` を入れる
    - 登録後に表示される **アプリID（applicationId）** と **アクセスキー（accessKey）** を控えておく
 
 ### 2. GitHubの設定
@@ -38,7 +38,9 @@
 
 3. Actions → daily-update → **Run workflow** で、1回目を手動で実行する
 
-公開URL：https://matanemaboroshi.github.io/moremoney/
+公開URL：https://matanemaboroshi.github.io/kifugaku/
+
+（2026-10-26 にリポジトリ名を `moremoney` から `kifugaku` に変えました。古い URL `https://matanemaboroshi.github.io/moremoney/` は転送されません。）
 
 サイトは `gh-pages` ブランチに出力され、GitHub Pagesが自動で公開する。表示されない場合は Settings → Pages の Source を「Deploy from a branch」、ブランチを `gh-pages` / `(root)` にする。
 

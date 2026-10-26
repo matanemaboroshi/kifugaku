@@ -4,7 +4,7 @@
 
 ## 1. データ：`api/feed.json`
 
-公開URL：`https://matanemaboroshi.github.io/moremoney/api/feed.json`（毎朝6時ごろ更新）
+公開URL：`https://matanemaboroshi.github.io/kifugaku/api/feed.json`（毎朝6時ごろ更新）
 
 | キー | 中身 |
 |---|---|
