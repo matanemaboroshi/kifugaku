@@ -34,13 +34,19 @@ def load_config():
     return json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 
 
+def image_urls(raw):
+    """All item pictures the API returns (up to 3), at 300x300."""
+    out = []
+    for img in raw.get("mediumImageUrls") or []:
+        url = img.get("imageUrl", "") if isinstance(img, dict) else str(img)
+        if url:
+            out.append(url.replace("_ex=128x128", "_ex=300x300"))
+    return out
+
+
 def first_image(raw):
-    imgs = raw.get("mediumImageUrls") or []
-    if not imgs:
-        return ""
-    img = imgs[0]
-    url = img.get("imageUrl", "") if isinstance(img, dict) else str(img)
-    return url.replace("_ex=128x128", "_ex=300x300")
+    urls = image_urls(raw)
+    return urls[0] if urls else ""
 
 
 def normalize(raw):
@@ -55,6 +61,8 @@ def normalize(raw):
         "price": int(raw.get("itemPrice", 0) or 0),
         "url": raw.get("affiliateUrl") or raw.get("itemUrl", ""),
         "image": first_image(raw),
+        # every picture, so the shorts can pick one without people, text or design (shorts PLAN D41)
+        "images": image_urls(raw),
         "shop": raw.get("shopName", ""),
         "review_avg": float(raw.get("reviewAverage", 0) or 0),
         "review_count": int(raw.get("reviewCount", 0) or 0),

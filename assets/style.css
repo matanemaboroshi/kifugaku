@@ -143,8 +143,6 @@ h2 { font-size: 17px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2
 
 /* video pages: same look as the shorts (navy, extra-bold serif ranks, red / green / blue frames) */
 .vpage { --navy: #0b1230; --navy-2: #1b2a5c; --v-red: #e43d30; --v-green: #3ec24a; --v-blue: #3b4cc0; background: #eceef4; }
-.vpage .pr { display: block; max-width: none; margin: 0; padding: 8px 16px; background: #fff; color: #111; font-weight: 700; font-size: 12px;
-  border-bottom: 1px solid var(--line); text-align: center; }
 .vpage main { padding-top: 0; }
 .vpage .crumbs { padding: 8px 0; }
 .vhero { margin: 0 -16px; padding: 20px 16px 22px; color: #fff; text-align: center;
