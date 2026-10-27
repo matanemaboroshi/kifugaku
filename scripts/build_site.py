@@ -288,10 +288,12 @@ def chart_svg(points, label, fmt, invert=False, flat_note=""):
 NAV = [("index.html", "トップ"), ("ranking.html", "人気急上昇"), ("changes.html", "値下げ"), ("shindan.html", "予算で探す")]
 
 
-# Headings use the same extra-bold serif as the Shorts captions, on every page.
+# Headings use the rounded gothic of the logo (Zen Maru Gothic, OFL). Video pages also load the
+# extra-bold serif of the Shorts captions for their ranks and titles.
 FONT_HEAD = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
              '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-             '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&display=swap">')
+             '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=swap">')
+VIDEO_HEAD = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&display=swap">'
 
 
 def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.png", noindex=False, scripts="", crumbs=None,
@@ -464,13 +466,14 @@ def hero(top):
     if len(top) < 3:
         return ""
     cards = "".join(
-        f'<li><a href="item/{i["slug"]}.html"><span class="p-rank">{n}位</span><span class="p-img">{thumb(i, 150)}</span>'
+        f'<li><a href="item/{i["slug"]}.html"><span class="p-img">{thumb(i, 150)}<span class="p-rank">{n}位</span></span>'
         f'<span class="p-name">{E(i["name"])}</span><b>{yen(i["price"])}</b></a></li>'
         for n, i in enumerate(top[:3], 1)
     )
     return f"""<section class="hero"><div class="rays" aria-hidden="true"></div>
 <h1>人気急上昇ランキング</h1>
 <ol class="podium">{cards}</ol>
+<p class="hero-more"><a href="ranking.html">TOP15を見る</a></p>
 </section>"""
 
 
@@ -481,10 +484,7 @@ def build_index(today, items, events7, catalog, videos=()):
     sale_html = (f'<section><h2>値下げされた返礼品</h2>{sale_table(sales, catalog, "", 5)}'
                  f'<p class="more"><a href="changes.html">値下げ {len(sales)}件をすべて見る</a></p></section>') if sales else ""
     teiban_html = section("定番の返礼品", teiban, "", "") if teiban else ""
-    rest = (f'<section class="rise"><h2>人気急上昇 4〜10位</h2>{rank_list(top[3:10], "", 4)}'
-            f'<p class="more"><a href="ranking.html">50位まで見る</a></p></section>') if len(top) > 3 else ""
     body = f"""{hero(top)}
-{rest}
 <section class="tool">
   <h2 class="tool-h">予算から返礼品を探す</h2>
   {shindan_form("shindan.html")}
@@ -499,13 +499,13 @@ def build_index(today, items, events7, catalog, videos=()):
 
 
 def build_ranking(today, items):
-    top = rising(items)[:50]
+    top = rising(items)[:15]
     tabs = "".join(f'<a href="cat/{c["slug"]}.html#rising">{E(c["name"])}</a>' for c in CFG["categories"])
-    body = f"""<h1>人気急上昇ランキング</h1>
+    body = f"""<h1>人気急上昇ランキング TOP15</h1>
 <p class="status">{mmdd(today)} 6:00 時点・直近のレビューの増え方の順</p>
 <nav class="chips" aria-label="カテゴリ別">{tabs}</nav>
 <section>{rank_list(top, "") if top else f'<p class="note">{WAIT}</p>'}</section>"""
-    return page(f"ふるさと納税 人気急上昇ランキング【{mmdd(today)}更新】",
+    return page(f"ふるさと納税 人気急上昇ランキング TOP15【{mmdd(today)}更新】",
                 "楽天ふるさと納税の返礼品を、直近のレビューの増え方で順位にしたランキングです。",
                 "ranking.html", body, 0, ogp="ogp/ranking.png", crumbs=[(None, "人気急上昇ランキング")])
 
@@ -809,7 +809,7 @@ def build_video(v, by_code, catalog, today, videos=()):
 <ol class="vlist">{"".join(rows)}</ol>
 {video_more(list(videos), v["id"])}"""
     return page(f"{v['title']}｜紹介した返礼品", "動画で紹介した返礼品のリンクです。", f"v/{v['id']}.html", body, 1, noindex=True,
-                crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])], body_class="vpage")
+                crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])], body_class="vpage", head=VIDEO_HEAD)
 
 
 def build_video_index(videos, by_code=None, catalog=None):
@@ -839,7 +839,7 @@ def build_video_index(videos, by_code=None, catalog=None):
 {lst}
 {video_more([], None)}"""
     return page("動画で紹介した返礼品", "ショート動画で紹介した返礼品のリンク集です。", "v/index.html", body, 1, noindex=True,
-                crumbs=[(None, "動画で紹介した返礼品")], body_class="vpage")
+                crumbs=[(None, "動画で紹介した返礼品")], body_class="vpage", head=VIDEO_HEAD)
 
 
 def make_ogp(rel, title, sub):
