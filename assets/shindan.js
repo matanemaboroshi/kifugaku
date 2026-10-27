@@ -89,15 +89,35 @@
     scored.sort(function (x, y) {
       return x.left - y.left || x.items.length - y.items.length || y.reviews - x.reviews;
     });
-    return scored.slice(0, 8);
+    return { combos: scored.slice(0, 5), within: list.slice().sort(function (a, b) { return b.r - a.r; }) };
   }
 
-  function render(R, combos) {
-    if (!combos.length) {
-      result.innerHTML = '<p class="note">' + yen(R) + '以内の返礼品が見つかりませんでした。金額かカテゴリの条件を変えてください。</p>';
+  var PAGE = 20;
+
+  function itemRow(it) {
+    var img = it.i ? '<img src="' + esc(it.i) + '" alt="" loading="lazy" width="56" height="56">' : '<span class="noimg"></span>';
+    return '<li><a href="item/' + esc(it.h) + '.html">' + img + '<span><b>' + esc(it.n) + '</b><small>' + esc(it.s) +
+      '</small></span><em>' + yen(it.p) + '</em></a></li>';
+  }
+
+  function showMore(list, shown) {
+    var ul = document.getElementById("within");
+    var btn = document.getElementById("more");
+    var next = list.slice(shown, shown + PAGE);
+    ul.insertAdjacentHTML("beforeend", next.map(itemRow).join(""));
+    shown += next.length;
+    if (shown >= list.length) { btn.remove(); return; }
+    btn.textContent = "もっと見る（残り" + (list.length - shown).toLocaleString("ja-JP") + "件）";
+    btn.onclick = function () { showMore(list, shown); };
+  }
+
+  function render(R, res) {
+    var combos = res.combos, within = res.within;
+    if (!within.length) {
+      result.innerHTML = '<p class="note">' + yen(R) + '以内の返礼品が見つかりませんでした。金額かカテゴリを変えてください。</p>';
       return;
     }
-    var html = '<h2>' + yen(R) + 'の検索結果</h2><table class="combos"><thead><tr><th>合計</th><th>残り</th><th>返礼品</th></tr></thead><tbody>';
+    var html = '<section><h2>' + yen(R) + 'に近い組み合わせ</h2><table class="combos"><thead><tr><th>合計</th><th>残り</th><th>返礼品</th></tr></thead><tbody>';
     combos.forEach(function (c) {
       html += '<tr><td class="c-total">' + yen(c.total) + '</td><td class="c-left' + (c.left === 0 ? ' zero' : '') + '">' + yen(c.left) + '</td><td><ul>';
       c.items.forEach(function (it) {
@@ -106,8 +126,11 @@
       });
       html += '</ul></td></tr>';
     });
-    html += '</tbody></table><p class="lead">寄付額は記録時点のものです。申し込みの前に各返礼品ページでご確認ください。</p>';
+    html += '</tbody></table></section>';
+    html += '<section><h2>' + yen(R) + '以内の返礼品 ' + within.length.toLocaleString("ja-JP") + '件</h2>' +
+      '<ul class="within" id="within"></ul><button type="button" class="more-btn" id="more"></button></section>';
     result.innerHTML = html;
+    showMore(within, 0);
   }
 
   function run() {

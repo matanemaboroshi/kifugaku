@@ -35,13 +35,13 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid 
 
 /* header */
 header.site { background: var(--navy); color: var(--white); }
-.head { max-width: 1000px; margin: 0 auto; padding: 12px 16px 4px; }
+.head { max-width: 1000px; margin: 0 auto; padding: 12px 16px 4px; text-align: center; }
 .logo { display: inline-flex; align-items: center; gap: 12px; color: var(--white); text-decoration: none; }
 .logo img { display: block; height: 40px; width: auto; }
 .logo-sub { font-size: 11px; line-height: 1.4; color: var(--gold); }
-.tabs { max-width: 1000px; margin: 0 auto; display: flex; overflow-x: auto; padding: 0 8px; scrollbar-width: none; }
+.tabs { max-width: 640px; margin: 0 auto; display: flex; justify-content: center; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
-.tabs a { flex: none; padding: 10px 10px 11px; font-size: 14px; color: #cfd5e2; text-decoration: none; }
+.tabs a { flex: 1 0 auto; padding: 10px 8px 11px; font-size: 14px; color: #cfd5e2; text-decoration: none; text-align: center; white-space: nowrap; }
 .tabs a[aria-current] { color: var(--white); font-weight: 700; box-shadow: inset 0 -3px 0 var(--gold); }
 .pr { max-width: 1000px; margin: 0 auto; padding: 6px 16px 0; font-size: 11px; color: var(--muted); }
 .crumbs { font-size: 12px; color: var(--muted); padding: 8px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -65,7 +65,7 @@ main > section:not(.hero):not(.tool):not(.vteaser):not(.vhero), .item > section 
 .rays { position: absolute; inset: -60%; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.13) 0 10deg, transparent 10deg 20deg); }
 .hero > *:not(.rays) { position: relative; }
 .hero h1 { margin: 0; color: var(--white); font-size: 23px; line-height: 1.45; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
-.podium { list-style: none; display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin: 18px 0 8px; padding: 0; }
+.podium { list-style: none; display: flex; justify-content: center; align-items: flex-end; gap: 10px; margin: 34px 0 8px; padding: 0; }
 .podium li { width: 31%; max-width: 128px; }
 .podium li:first-child { order: 2; transform: translateY(-10px); }
 .podium li:nth-child(2) { order: 1; }
@@ -74,9 +74,12 @@ main > section:not(.hero):not(.tool):not(.vteaser):not(.vhero), .item > section 
 .podium li:first-child a { box-shadow: 0 0 0 3px var(--gold), 0 4px 0 rgba(0,0,0,.18); }
 .p-img { display: block; width: 100%; aspect-ratio: 1; }
 .p-img img, .p-img .noimg { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: 6px; }
-.podium b { font-family: var(--serif); font-weight: 900; font-size: 20px; color: var(--sale); line-height: 1.3; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.podium b small { font-size: 12px; margin-left: 1px; }
-.podium a > span:last-child { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.podium a { position: relative; padding-top: 10px; }
+.p-rank { position: absolute; left: -6px; top: -14px; z-index: 1; font-family: var(--serif); font-weight: 900; font-size: 22px; line-height: 1;
+  color: var(--white); -webkit-text-stroke: 5px var(--navy); paint-order: stroke fill; }
+.podium li:first-child .p-rank { color: var(--gold); font-size: 26px; }
+.p-name { font-size: 11px; line-height: 1.4; margin-top: 6px; text-align: left; width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
+.podium b { font-size: 15px; font-weight: 800; color: var(--sale); line-height: 1.3; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .hero-cap { margin: 4px 0 0; font-size: 11px; color: #ffe9e9; }
 .hero-cap a { color: var(--white); font-weight: 700; }
 
@@ -142,8 +145,7 @@ main > section:not(.hero):not(.tool):not(.vteaser):not(.vhero), .item > section 
 .cat-grid small { color: var(--muted); font-size: 11px; }
 
 /* planner results */
-#result h2 { margin-top: 24px; }
-#result:not(:empty) { background: var(--white); margin: 16px -16px 0; padding: 4px 16px 16px; }
+#result h2 { margin-top: 0; }
 .combos td { padding: 12px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .c-total, .c-left { white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
 .c-total { color: var(--sale); }
@@ -249,6 +251,36 @@ footer.site a { color: var(--white); }
 
 .noimg { display: block; background: #eef0f4; }
 
+/* ranked rows (人気急上昇) */
+.ranklist { list-style: none; margin: 0; padding: 0; }
+.ranklist li + li { border-top: 1px solid var(--line); }
+.ranklist a { display: flex; align-items: center; gap: 10px; padding: 10px 0; color: var(--text); text-decoration: none; }
+.rk { flex: none; width: 30px; text-align: center; font-family: var(--serif); font-weight: 900; font-size: 20px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.ranklist li:nth-child(-n+3) .rk { color: var(--red); }
+.rk-img { flex: none; width: 60px; height: 60px; }
+.rk-img img, .rk-img .noimg { width: 60px; height: 60px; object-fit: contain; display: block; background: #f6f7f9; border-radius: 6px; }
+.rk-body { flex: 1; min-width: 0; }
+.rk-body b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; font-weight: 700; line-height: 1.45; }
+.rk-body small, .rk-val small { display: block; font-size: 11px; color: var(--muted); }
+.rk-val { flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+.rk-val b { display: block; font-size: 16px; color: var(--sale); }
+.ranklist a:hover b { text-decoration: underline; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
+.chips a { padding: 4px 12px; border-radius: 999px; background: var(--white); border: 1px solid var(--line); font-size: 13px; text-decoration: none; color: var(--text); }
+
+/* planner: everything within the budget */
+#result section { background: var(--white); margin: 16px -16px 0; padding: 18px 16px; }
+#result:not(:empty) { background: none; margin: 0; padding: 0; }
+.within { list-style: none; margin: 0; padding: 0; }
+.within li + li { border-top: 1px solid var(--line); }
+.within a { display: flex; align-items: center; gap: 10px; padding: 10px 0; color: var(--text); text-decoration: none; }
+.within img, .within .noimg { flex: none; width: 56px; height: 56px; object-fit: contain; background: #f6f7f9; border-radius: 6px; }
+.within span { flex: 1; min-width: 0; }
+.within b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 1.45; }
+.within small { display: block; font-size: 11px; color: var(--muted); }
+.within em { flex: none; font-style: normal; font-weight: 800; color: var(--sale); font-variant-numeric: tabular-nums; }
+.more-btn { display: block; width: 100%; margin-top: 12px; min-height: 48px; border: 2px solid var(--navy); border-radius: 8px; background: var(--white); color: var(--navy); font: inherit; font-weight: 700; cursor: pointer; }
+
 @media (max-width: 760px) {
   .tiles { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .cat-grid { grid-template-columns: repeat(3, 1fr); }
@@ -263,10 +295,15 @@ footer.site a { color: var(--white); }
   .t-img img, .t-img .noimg { width: 52px; height: 52px; }
 }
 @media (min-width: 761px) {
-  main > section:not(.hero):not(.tool):not(.vteaser):not(.vhero), .item > section, .vteaser, .item-head { margin-left: 0; margin-right: 0; border-radius: 10px; }
+  main > section:not(.hero):not(.tool):not(.vteaser):not(.vhero), .item > section, .vteaser, .item-head, #result section { margin-left: 0; margin-right: 0; border-radius: 10px; }
   .hero { margin-left: 0; margin-right: 0; border-radius: 0 0 14px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* product names are long seller titles: plain bold gothic reads better than the display serif */
 .item-main h1 { font-family: inherit; font-weight: 700; font-size: 17px; line-height: 1.55; text-wrap: pretty; }
 .combos th { white-space: nowrap; }
+@media (min-width: 761px) {
+  .podium li { max-width: 190px; }
+  .p-name { font-size: 13px; }
+  .podium b { font-size: 18px; }
+}
