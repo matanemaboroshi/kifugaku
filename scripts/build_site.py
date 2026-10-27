@@ -224,6 +224,12 @@ def chart_svg(points, label, fmt, invert=False, flat_note=""):
 NAV = [("index.html", "トップ"), ("changes.html", "値下げ情報"), ("shindan.html", "残り枠から探す"), ("ryou.html", "1万円あたりの量")]
 
 
+# Headings use the same extra-bold serif as the Shorts captions, on every page.
+FONT_HEAD = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
+             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+             '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&display=swap">')
+
+
 def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.png", noindex=False, scripts="", crumbs=None,
          body_class="", head=""):
     up = "../" * depth
@@ -256,7 +262,10 @@ def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.pn
 <meta property="og:image" content="{E(SITE_URL + ogp)}">
 <meta property="og:site_name" content="{E(CFG["site_name"])}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#14213d">
+<link rel="icon" href="{up}assets/mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{up}assets/apple-touch-icon.png">
+{FONT_HEAD}
 <link rel="stylesheet" href="{up}assets/style.css">
 {ld}
 {head}
@@ -264,7 +273,7 @@ def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.pn
 <body{f' class="{body_class}"' if body_class else ""}>
 <header class="site">
   <div class="head">
-    <a class="logo" href="{up}index.html"><span class="logo-sub">楽天ふるさと納税の寄付額を毎日記録</span>{E(CFG["site_name"])}</a>
+    <a class="logo" href="{up}index.html"><img src="{up}assets/logo.svg" alt="{E(CFG["site_name"])}" width="155" height="40"><span class="logo-sub">楽天ふるさと納税の<br>寄付額を毎日記録</span></a>
   </div>
   <nav class="tabs">{nav}</nav>
 </header>
@@ -329,7 +338,7 @@ def sale_table(events, catalog, up, limit):
         rows.append(f"""<tr>
   <td class="t-img"><a href="{up}item/{slug_of(e["code"])}.html">{thumb(info, 56)}</a></td>
   <td class="t-name"><a href="{up}item/{slug_of(e["code"])}.html">{E(info["name"][:60])}</a><small>{E(info["shop"])}・{E(CATS.get(e["cat"], {}).get("name", ""))}・{mmdd(e["date"])}</small></td>
-  <td class="t-price"><s>{yen(e["old"])}</s><b>{yen(e["new"])}</b><small>{diff:,}円安く（{diff / e["old"] * 100:.0f}%）</small></td>
+  <td class="t-price"><s>{yen(e["old"])}</s><b>{yen(e["new"])}</b><em class="down">{diff:,}円下がった</em><small>{diff / e["old"] * 100:.0f}%</small></td>
 </tr>""")
     return f'<table class="sale"><thead><tr><th></th><th>返礼品</th><th>寄付額</th></tr></thead><tbody>{"".join(rows)}</tbody></table>'
 
@@ -385,8 +394,9 @@ def build_index(today, items, events7, catalog, videos=()):
             best_ryou += by_ryou([i for i in items if i["cat"] == c["slug"]])[:1]
     sale_html = (sale_table(sales, catalog, "", 10) + '<p class="more"><a href="changes.html">値下げ情報をすべて見る</a></p>') if sales else \
         f'<p class="note">{"直近7日間に値下げされた返礼品はありません。" if days > 1 else WAIT}</p>'
-    body = f"""<section class="tool">
-  <h1>控除上限の残りから返礼品を探す</h1>
+    body = f"""{hero(best_ryou)}
+<section class="tool">
+  <h2 class="tool-h">控除上限の残りから返礼品を探す</h2>
   {shindan_form("shindan.html")}
   <p class="tool-help">残りの金額以内で、合計がなるべく近くなる1〜3品の組み合わせを表示します。</p>
 </section>
@@ -400,6 +410,22 @@ def build_index(today, items, events7, catalog, videos=()):
 {section("定番の返礼品", teiban, "", TEIBAN_WAIT, None, f"直近{TEIBAN_WINDOW}日のうち{int(TEIBAN_RATIO * 100)}%以上の日でカテゴリ上位に入った返礼品です。")}"""
     title = f"{CFG['site_name']}｜楽天ふるさと納税の値下げ情報・残り枠から探す"
     return page(title, CFG["site_description"], "", body, 0, ogp="ogp/index.png")
+
+
+def hero(best_ryou):
+    """Top-page opener in the Shorts look: red rays, and the three categories' best amount per 10,000 yen."""
+    top = sorted(best_ryou, key=lambda i: -kg_per_10k(i))[:3]
+    cards = "".join(
+        f'<li><a href="item/{i["slug"]}.html"><span class="p-img">{thumb(i, 150)}</span>'
+        f'<b>{kg_per_10k(i):g}<small>kg</small></b><span>{E(CATS[i["cat"]]["name"])}</span></a></li>'
+        for i in top
+    )
+    podium = (f'<ol class="podium">{cards}</ol>'
+              f'<p class="hero-cap">寄付額1万円あたりの量（カテゴリ別1位から）　<a href="ryou.html">すべて見る</a></p>') if top else ""
+    return f"""<section class="hero"><div class="rays" aria-hidden="true"></div>
+<h1>楽天ふるさと納税の<br>寄付額を毎日記録</h1>
+{podium}
+</section>"""
 
 
 def video_teaser(videos, limit=3):
@@ -519,7 +545,7 @@ def build_shindan(today):
     <li>寄付額は変わることがあります。申し込みの前に各返礼品ページでご確認ください。</li>
   </ul>
 </section>"""
-    return page("控除上限の残りから返礼品を探す｜ふるさと納税 寄付額チェッカー",
+    return page(f"控除上限の残りから返礼品を探す｜{CFG['site_name']}",
                 "控除上限の残りの金額を入力すると、楽天ふるさと納税の人気返礼品から合計が近くなる組み合わせを表示します。",
                 "shindan.html", body, 0, ogp="ogp/shindan.png", scripts='<script src="assets/shindan.js" defer></script>',
                 crumbs=[(None, "残り枠から探す")])
@@ -634,13 +660,6 @@ def video_is_public(v, now=None):
     return v["published"] <= (now or datetime.now(JST)).date().isoformat()
 
 
-# Per-video pages look like the videos (navy background, extra-bold serif ranks, red/green/blue
-# frames) so a viewer coming from the channel profile knows at once they are in the right place.
-VIDEO_HEAD = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
-              '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-              '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&display=swap">')
-
-
 def yt_url(v):
     return f"https://www.youtube.com/shorts/{v['youtube_id']}" if v.get("youtube_id") else ""
 
@@ -712,7 +731,7 @@ def build_video(v, by_code, catalog, today, videos=()):
 <p class="lead">寄付額は変わることがあります。申し込みの前に返礼品ページでご確認ください。</p>
 {video_more(list(videos), v["id"])}"""
     return page(f"{v['title']}｜紹介した返礼品", "動画で紹介した返礼品のリンクです。", f"v/{v['id']}.html", body, 1, noindex=True,
-                crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])], body_class="vpage", head=VIDEO_HEAD)
+                crumbs=[("v/index.html", "動画で紹介した返礼品"), (None, v["title"])], body_class="vpage")
 
 
 def build_video_index(videos, by_code=None, catalog=None):
@@ -743,11 +762,11 @@ def build_video_index(videos, by_code=None, catalog=None):
 {lst}
 {video_more([], None)}"""
     return page("動画で紹介した返礼品", "ショート動画で紹介した返礼品のリンク集です。", "v/index.html", body, 1, noindex=True,
-                crumbs=[(None, "動画で紹介した返礼品")], body_class="vpage", head=VIDEO_HEAD)
+                crumbs=[(None, "動画で紹介した返礼品")], body_class="vpage")
 
 
 def make_ogp(rel, title, sub):
-    """1200x630 share image in the site's light style. Skipped without Pillow or the font."""
+    """1200x630 share image: navy logo band, navy title, red footer band (the Shorts colors). Skipped without Pillow or the font."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError:
@@ -758,8 +777,14 @@ def make_ogp(rel, title, sub):
     W, H = 1200, 630
     img = Image.new("RGB", (W, H), "#ffffff")
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 120], fill="#1a6e4f")
-    d.text((64, 60), CFG["site_name"], font=ImageFont.truetype(str(font_path), 44), fill="#ffffff", anchor="lm")
+    d.rectangle([0, 0, W, 130], fill="#14213d")
+    logo_path = ROOT / "brand" / "logo-dark.png"
+    if logo_path.exists():
+        logo = Image.open(logo_path).convert("RGBA")
+        logo = logo.resize((int(logo.width * 96 / logo.height), 96), Image.LANCZOS)
+        img.paste(logo, (56, 17), logo)
+    else:
+        d.text((64, 65), CFG["site_name"], font=ImageFont.truetype(str(font_path), 44), fill="#ffffff", anchor="lm")
     size = 92
     lines = title.split("\n")
     while size > 48:
@@ -770,10 +795,10 @@ def make_ogp(rel, title, sub):
     f = ImageFont.truetype(str(font_path), size)
     y = 190
     for l in lines:
-        d.text((64, y), l, font=f, fill="#1f2328")
+        d.text((64, y), l, font=f, fill="#14213d")
         y += int(size * 1.3)
-    d.rectangle([0, H - 110, W, H], fill="#f2f4f3")
-    d.text((64, H - 55), sub, font=ImageFont.truetype(str(font_path), 34), fill="#1a6e4f", anchor="lm")
+    d.rectangle([0, H - 110, W, H], fill="#e0262b")
+    d.text((64, H - 55), sub, font=ImageFont.truetype(str(font_path), 34), fill="#ffffff", anchor="lm")
     path = OUT / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, optimize=True)
@@ -790,7 +815,7 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     (OUT / "assets").mkdir(parents=True)
-    for f in ("style.css", "shindan.js"):
+    for f in ("style.css", "shindan.js", "logo.svg", "mark.svg", "apple-touch-icon.png"):
         shutil.copy(ROOT / "assets" / f, OUT / "assets" / f)
     write(".nojekyll", "")
 
