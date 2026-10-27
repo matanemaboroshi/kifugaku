@@ -30,8 +30,9 @@ def load():
     catalog_path = DATA / "catalog.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {}
     for info in catalog.values():
-        info["name"] = display_name(info["name"])
-        info["options"] = has_options(info["name"])
+        info["full_name"] = display_name(info["name"])
+        info["name"] = clean_name(info["full_name"])
+        info["options"] = has_options(info["full_name"])
     snaps = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((DATA / "daily").glob("*.json"))]
     return catalog, snaps
 
@@ -39,6 +40,47 @@ def load():
 def display_name(name):
     # Every item starts with the same "【ふるさと納税】" tag; drop it so lists show the useful part.
     return re.sub(r"^\s*【ふるさと納税】\s*", "", name).strip() or name
+
+
+# Seller titles are long keyword lists with ad copy ("累計○箱突破★", "総合1位", "送料無料").
+# Lists show a short name without that copy; the item page also shows the full title.
+_BRACKETS = re.compile(r"【[^】]*】|\[[^\]]*\]|《[^》]*》|<[^>]*>|＜[^＞]*＞|≪[^≫]*≫|\\[^/]*/|〈[^〉]*〉")
+_AD_COPY = re.compile(
+    r"ふるさと納税|送料無料|楽天限定|ランキング\S*|総合\S*位|\S*1位\S*|No\.?\s*1|高評価\S*|累計\S*|"
+    r"メディア|TVで話題|テレビで話題|SNSで話題|話題の|大人気|人気の|人気|お礼品|返礼品|最短\S*|翌日\S*|即日\S*|"
+    r"新登場|期間限定|数量限定|先行予約|予約|レビュー\S*|リピート\S*|クーポン\S*|ポイント\S*|\d+%OFF|"
+    r"\d{3,}円|★[\d.]+\S*|★|☆|!+|総合|\d+年連続\S*|\S*受賞\S*|\S*突破\S*|Best\s?\d*|"
+    r"選べる\S*|\S*発送\S*|\S*配送\S*|\S*お届け\S*|年末\S*|着日\S*|\S*指定可\S*|\d{4}年度?\S*|"
+    r"(?<![\d.])\d\.\d{1,2}(?:以上)?(?![\d.]*\s*(?:kg|g|L|ml|cm|mm))|リピーター\S*|_|常連|高リピート\S*|登場|量が|衝撃の\S*|\s高\s"
+)
+
+
+def _clean(name, limit, keep_brackets):
+    s = unicodedata.normalize("NFKC", name)
+    if keep_brackets:
+        s = re.sub(r"[【】\[\]《》<>＜＞≪≫〈〉\\/◆]", " ", s)
+    else:
+        s = _BRACKETS.sub(" ", s)
+    s = re.split(r"\s[|｜]\s?|[|｜]", s)[0]
+    head = re.split(r"\s/\s", s)[0]
+    s = head if len(head.strip()) >= 8 else s
+    s = _AD_COPY.sub(" ", s)
+    out = ""
+    for w in s.split():
+        if re.fullmatch(r"[|｜/・,、()\-~〜]+", w):
+            continue
+        if len(out) + len(w) + 1 > limit:
+            break
+        out = f"{out} {w}".strip()
+    out = re.sub(r"[\s(/・,、~〜-]+$", "", out)
+    return out.rstrip(")") if out.count("(") < out.count(")") else out
+
+
+def clean_name(name, limit=34):
+    out = _clean(name, limit, keep_brackets=False)
+    if len(out) < 10:  # the real name was inside the brackets (＼厚切り牛タン 塩味／)
+        out = max(out, _clean(name, limit, keep_brackets=True), key=len)
+    return out or unicodedata.normalize("NFKC", name)[:limit]
 
 
 QTY = re.compile(r"(計|合計|総量|総重量)?\s*(\d+(?:\.\d+)?)\s*(kg|キロ|g|グラム)(?:\s*[×x]\s*(\d+))?", re.I)
@@ -121,7 +163,7 @@ def analyze(catalog, snaps):
             growth = reviews - base[2] if base is not hist[-1] else 0
 
             present = sum(1 for s in recent if any(r[0] == code for r in s["categories"].get(slug, [])))
-            kg = parse_kg(info["name"]) if CATS.get(slug, {}).get("per_kg") else None
+            kg = parse_kg(info["full_name"]) if CATS.get(slug, {}).get("per_kg") else None
             items.append(dict(
                 info,
                 code=code, slug=slug_of(code), cat=slug, rank=rank, price=price, reviews=reviews,
@@ -243,7 +285,7 @@ def chart_svg(points, label, fmt, invert=False, flat_note=""):
     )
 
 
-NAV = [("index.html", "トップ"), ("changes.html", "値下げ情報"), ("shindan.html", "残り枠から探す"), ("ryou.html", "1万円あたりの量")]
+NAV = [("index.html", "トップ"), ("ranking.html", "人気急上昇"), ("changes.html", "値下げ"), ("shindan.html", "予算で探す")]
 
 
 # Headings use the same extra-bold serif as the Shorts captions, on every page.
@@ -306,6 +348,7 @@ def page(title, description, path, body, depth, jsonld=None, ogp="ogp/default.pn
 </main>
 <footer class="site">
   <ul>
+    <li><a href="{up}ryou.html">1万円あたりの量</a></li>
     <li><a href="{up}about.html">このサイトについて</a></li>
     <li><a href="{up}privacy.html">プライバシーポリシー</a></li>
     <li><a href="{up}v/index.html">動画で紹介した返礼品</a></li>
@@ -332,7 +375,7 @@ def tile(it, up, note=""):
   <a class="tile-link" href="{up}item/{it["slug"]}.html">
     <span class="tile-img">{thumb(it, 300)}</span>
     <span class="tile-badges">{badges(it)}</span>
-    <span class="tile-name">{E(it["name"][:70])}</span>
+    <span class="tile-name">{E(it["name"])}</span>
     <span class="tile-shop">{E(it["shop"])}</span>
     <span class="tile-price">{old}{yen(it["price"])}</span>
   </a>
@@ -359,7 +402,7 @@ def sale_table(events, catalog, up, limit):
         diff = e["old"] - e["new"]
         rows.append(f"""<tr>
   <td class="t-img"><a href="{up}item/{slug_of(e["code"])}.html">{thumb(info, 56)}</a></td>
-  <td class="t-name"><a href="{up}item/{slug_of(e["code"])}.html">{E(info["name"][:60])}</a><small>{E(info["shop"])}・{E(CATS.get(e["cat"], {}).get("name", ""))}・{mmdd(e["date"])}</small></td>
+  <td class="t-name"><a href="{up}item/{slug_of(e["code"])}.html">{E(info["name"])}</a><small>{E(info["shop"])}・{E(CATS.get(e["cat"], {}).get("name", ""))}・{mmdd(e["date"])}</small></td>
   <td class="t-price"><s>{yen(e["old"])}</s><b>{yen(e["new"])}</b><em class="down">{diff:,}円下がった</em><small>{diff / e["old"] * 100:.0f}%</small></td>
 </tr>""")
     return f'<table class="sale"><thead><tr><th></th><th>返礼品</th><th>寄付額</th></tr></thead><tbody>{"".join(rows)}</tbody></table>'
@@ -373,10 +416,6 @@ def by_ryou(items):
     return sorted([i for i in items if i["per_kg"]], key=lambda i: i["per_kg"])
 
 
-def growth_note(i):
-    return f'直近のレビュー +{i["growth"]:,}件' if i["growth"] > 0 else ""
-
-
 def ryou_note(i):
     return f'1万円あたり 約{kg_per_10k(i):g}kg'
 
@@ -387,7 +426,7 @@ TEIBAN_WAIT = f"定番の判定には{TEIBAN_MIN_DAYS}日分の記録が必要�
 
 def shindan_form(action, value=""):
     return f"""<form class="finder" action="{action}" method="get">
-  <label for="r">控除上限の残り</label>
+  <label for="r">予算（控除上限の残りなど）</label>
   <div class="finder-row">
     <span class="field"><input id="r" name="r" type="number" inputmode="numeric" min="1000" step="1000" placeholder="23000" value="{E(value)}" required><span>円</span></span>
     <button type="submit">探す</button>
@@ -405,46 +444,70 @@ def cat_grid(items, up):
 
 # ---------- pages ----------
 
+def rank_list(items, up, start=1):
+    """Ranked rows: rank, photo, short name, place and category, donation and the review increase."""
+    rows = "".join(f"""<li><a href="{up}item/{i["slug"]}.html">
+  <span class="rk">{n}</span><span class="rk-img">{thumb(i, 120)}</span>
+  <span class="rk-body"><b>{E(i["name"])}</b><small>{E(i["shop"])}・{E(CATS[i["cat"]]["name"])}</small></span>
+  <span class="rk-val"><b>{yen(i["price"])}</b><small>レビュー +{i["growth"]:,}件</small></span>
+</a></li>""" for n, i in enumerate(items, start))
+    return f'<ol class="ranklist">{rows}</ol>'
+
+
+def rising(items):
+    """Popularity ranking: review increase over the last ~7 records (a proxy for recent donations)."""
+    return by_momentum([i for i in items if i["growth"] > 0])
+
+
+def hero(top):
+    """Top-page opener in the Shorts look: red rays and the top 3 of the popularity ranking."""
+    if len(top) < 3:
+        return ""
+    cards = "".join(
+        f'<li><a href="item/{i["slug"]}.html"><span class="p-rank">{n}位</span><span class="p-img">{thumb(i, 150)}</span>'
+        f'<span class="p-name">{E(i["name"])}</span><b>{yen(i["price"])}</b></a></li>'
+        for n, i in enumerate(top[:3], 1)
+    )
+    return f"""<section class="hero"><div class="rays" aria-hidden="true"></div>
+<h1>人気急上昇ランキング</h1>
+<ol class="podium">{cards}</ol>
+</section>"""
+
+
 def build_index(today, items, events7, catalog, videos=()):
     sales = [e for e in events7 if e["new"] < e["old"]]
     teiban = sorted([i for i in items if i["teiban"]], key=lambda i: -i["reviews"])[:8]
-    momentum = by_momentum([i for i in items if i["growth"] > 0])[:8]
-    best_ryou = []
-    for c in CFG["categories"]:
-        if c["per_kg"]:
-            best_ryou += by_ryou([i for i in items if i["cat"] == c["slug"]])[:1]
-    sale_html = (f'<section><h2>値下げされた返礼品（直近7日）</h2>{sale_table(sales, catalog, "", 10)}'
-                 '<p class="more"><a href="changes.html">値下げ情報をすべて見る</a></p></section>') if sales else ""
-    body = f"""{hero(best_ryou)}
+    top = rising(items)
+    sale_html = (f'<section><h2>値下げされた返礼品</h2>{sale_table(sales, catalog, "", 5)}'
+                 f'<p class="more"><a href="changes.html">値下げ {len(sales)}件をすべて見る</a></p></section>') if sales else ""
+    teiban_html = section("定番の返礼品", teiban, "", "") if teiban else ""
+    rest = (f'<section class="rise"><h2>人気急上昇 4〜10位</h2>{rank_list(top[3:10], "", 4)}'
+            f'<p class="more"><a href="ranking.html">50位まで見る</a></p></section>') if len(top) > 3 else ""
+    body = f"""{hero(top)}
+{rest}
 <section class="tool">
-  <h2 class="tool-h">控除上限の残りから返礼品を探す</h2>
+  <h2 class="tool-h">予算から返礼品を探す</h2>
   {shindan_form("shindan.html")}
 </section>
-<p class="status">{mmdd(today)} 6:00 更新</p>
 {sale_html}
 {video_teaser(videos)}
 <section><h2>カテゴリから探す</h2>{cat_grid(items, "")}</section>
-{section("申し込みが増えている返礼品", momentum, "", WAIT, growth_note)}
-{section("定番の返礼品", teiban, "", TEIBAN_WAIT)}"""
-    title = f"{CFG['site_name']}｜楽天ふるさと納税の値下げ情報・残り枠から探す"
+{teiban_html}
+<p class="status">{mmdd(today)} 6:00 時点の寄付額です</p>"""
+    title = f"{CFG['site_name']}｜楽天ふるさと納税の人気急上昇ランキング・値下げ情報"
     return page(title, CFG["site_description"], "", body, 0, ogp="ogp/index.png")
 
 
-def hero(best_ryou):
-    """Top-page opener in the Shorts look: red rays, and the three categories' best amount per 10,000 yen."""
-    top = sorted(best_ryou, key=lambda i: -kg_per_10k(i))[:3]
-    cards = "".join(
-        f'<li><a href="item/{i["slug"]}.html"><span class="p-img">{thumb(i, 150)}</span>'
-        f'<b>{kg_per_10k(i):g}<small>kg</small></b><span>{E(CATS[i["cat"]]["name"])}</span></a></li>'
-        for i in top
-    )
-    if not top:
-        return ""
-    return f"""<section class="hero"><div class="rays" aria-hidden="true"></div>
-<h1>寄付1万円あたり<br>量が多い返礼品</h1>
-<ol class="podium">{cards}</ol>
-<p class="hero-cap"><a href="ryou.html">カテゴリ別に見る</a></p>
-</section>"""
+def build_ranking(today, items):
+    top = rising(items)[:50]
+    tabs = "".join(f'<a href="cat/{c["slug"]}.html#rising">{E(c["name"])}</a>' for c in CFG["categories"])
+    body = f"""<h1>人気急上昇ランキング</h1>
+<p class="status">{mmdd(today)} 6:00 時点・直近のレビューの増え方の順</p>
+<nav class="chips" aria-label="カテゴリ別">{tabs}</nav>
+<section>{rank_list(top, "") if top else f'<p class="note">{WAIT}</p>'}</section>"""
+    return page(f"ふるさと納税 人気急上昇ランキング【{mmdd(today)}更新】",
+                "楽天ふるさと納税の返礼品を、直近のレビューの増え方で順位にしたランキングです。",
+                "ranking.html", body, 0, ogp="ogp/ranking.png", crumbs=[(None, "人気急上昇ランキング")])
 
 
 def video_teaser(videos, limit=3):
@@ -461,15 +524,16 @@ def video_teaser(videos, limit=3):
 def build_category(c, today, items):
     mine = [i for i in items if i["cat"] == c["slug"]]
     popular = sorted(mine, key=lambda i: i["rank"])
-    momentum = by_momentum([i for i in mine if i["growth"] > 0])[:8]
+    momentum = rising(mine)[:10]
     sales = sorted([i for i in mine if i["change"] < 0], key=lambda i: i["change"])[:8]
     ryou = ""
     if c["per_kg"]:
         ryou = f'<div id="ryou">{section("寄付額1万円あたりの量", by_ryou(mine)[:12], "../", "対象の返礼品がありません。", ryou_note)}</div>'
+    rise = f'<section id="rising"><h2>人気急上昇</h2>{rank_list(momentum, "../")}</section>' if momentum else ""
     body = f"""<h1>{E(c["name"])}の返礼品</h1>
-{section("今日値下げされた返礼品", sales, "../", "") if sales else ""}
+{rise}
+{section("値下げされた返礼品", sales, "../", "") if sales else ""}
 {ryou}
-{section("申し込みが増えている返礼品", momentum, "../", WAIT, growth_note)}
 {section("レビューの多い順", popular, "../", "データがありません。")}"""
     title = f"ふるさと納税 {c['name']}の返礼品一覧｜値下げ情報・寄付額の推移【{mmdd(today)}更新】"
     desc = f"楽天ふるさと納税「{c['name']}」の人気返礼品{len(mine)}品の寄付額を比べられます。値下げされた返礼品や寄付額の推移を確認できます。"
@@ -507,7 +571,7 @@ def build_item(it, today):
     ]
     if it["per_kg"]:
         facts.append(("1万円あたりの量（目安）", f'約{kg_per_10k(it):g}kg（内容量 約{it["kg"]:g}kgとして算出）'))
-    facts.append(("記録日数", f'{it["tracked"]}日'))
+    facts.append(("楽天での商品名", it["full_name"]))
     rows = "".join(f"<tr><th>{E(k)}</th><td>{E(v)}</td></tr>" for k, v in facts)
     img = f'<img src="{E(it["image"])}" alt="{E(it["name"][:60])}" width="300" height="300">' if it["image"] else ""
     body = f"""<article class="item">
@@ -537,17 +601,17 @@ def build_changes(today, events30, catalog, n_snaps):
     sales = [e for e in events30 if e["new"] < e["old"]]
     empty = WAIT if n_snaps < 2 else "直近30日間に値下げされた返礼品はありません。"
     body = f"""<h1>値下げ情報</h1>
-<p class="status">{mmdd(today)} 6:00 更新</p>
+<p class="status">{mmdd(today)} 6:00 時点・直近30日 {len(sales)}件</p>
 {sale_table(sales, catalog, "", 200) if sales else f'<p class="note">{empty}</p>'}"""
     return page(f"ふるさと納税 値下げ情報【{mmdd(today)}更新】寄付額が下がった返礼品",
                 "楽天ふるさと納税の人気返礼品のうち、寄付額が下がったものの一覧です。",
-                "changes.html", body, 0, ogp="ogp/changes.png", crumbs=[(None, "値下げ情報")])
+                "changes.html", body, 0, ogp="ogp/changes.png", crumbs=[(None, "値下げ")])
 
 
 def build_shindan(today):
     chips = "".join(f'<label class="chk"><input type="checkbox" name="c" value="{c["slug"]}">{E(c["name"])}</label>' for c in CFG["categories"])
     body = f"""<section class="tool">
-  <h1>控除上限の残りから返礼品を探す</h1>
+  <h1>予算から返礼品を探す</h1>
   {shindan_form("shindan.html")}
   <fieldset class="chks" id="chips"><legend>カテゴリ（未選択はすべて）</legend>{chips}</fieldset>
 </section>
@@ -560,10 +624,10 @@ def build_shindan(today):
     <li>寄付額は変わることがあります。申し込みの前に各返礼品ページでご確認ください。</li>
   </ul>
 </section>"""
-    return page(f"控除上限の残りから返礼品を探す｜{CFG['site_name']}",
+    return page(f"予算から返礼品を探す｜{CFG['site_name']}",
                 "控除上限の残りの金額を入力すると、楽天ふるさと納税の人気返礼品から合計が近くなる組み合わせを表示します。",
                 "shindan.html", body, 0, ogp="ogp/shindan.png", scripts='<script src="assets/shindan.js" defer></script>',
-                crumbs=[(None, "残り枠から探す")])
+                crumbs=[(None, "予算で探す")])
 
 
 def build_about():
@@ -621,7 +685,7 @@ def build_empty():
 
 def item_record(it):
     return {
-        "code": it["code"], "name": it["name"], "shop": it["shop"], "category": it["cat"],
+        "code": it["code"], "name": it["full_name"], "shop": it["shop"], "category": it["cat"],
         "price": it["price"], "reviews": it["reviews"], "review_avg": it["review_avg"],
         "kg": it["kg"], "kg_per_10k": kg_per_10k(it),
         "page": SITE_URL + f"item/{it['slug']}.html", "url": it["url"], "image": it["image"],
@@ -630,7 +694,7 @@ def item_record(it):
 
 def planner_data(items):
     # Compact keys keep the file small; read by assets/shindan.js.
-    return [{"n": i["name"][:70], "p": i["price"], "c": i["cat"], "u": i["url"], "i": i["image"],
+    return [{"n": i["name"], "p": i["price"], "c": i["cat"], "u": i["url"], "i": i["image"],
              "s": i["shop"], "r": i["reviews"], "h": i["slug"]}
             for i in sorted(items, key=lambda i: -i["reviews"]) if i["price"] >= 1000]
 
@@ -640,7 +704,7 @@ def feed(today, items, events7, catalog, n_snaps):
 
     def event(e):
         info = catalog[e["code"]]
-        return {"date": e["date"], "code": e["code"], "name": info["name"], "shop": info["shop"], "category": e["cat"],
+        return {"date": e["date"], "code": e["code"], "name": info["full_name"], "shop": info["shop"], "category": e["cat"],
                 "before": e["old"], "after": e["new"], "diff": e["new"] - e["old"],
                 "pct": round((e["new"] - e["old"]) / e["old"] * 100, 1),
                 "page": SITE_URL + f"item/{slug_of(e['code'])}.html", "url": info["url"], "image": info["image"],
@@ -709,7 +773,7 @@ def video_rows(v, by_code, catalog, today):
       {per}
     </div>
   </div>
-  <p class="vname">{E(info["name"][:90])}</p>
+  <p class="vname">{E(info["full_name"][:90])}</p>
   <a class="vbtn" href="{E(info["url"])}" rel="sponsored nofollow noopener" target="_blank">楽天ふるさと納税で見る</a>
   {hist}
 </li>""")
@@ -853,11 +917,13 @@ def main():
         videos = load_videos() if (DATA / "videos").exists() else []
         write("index.html", build_index(today, items, events7, catalog, videos))
         write("changes.html", build_changes(today, events30, catalog, len(snaps)))
+        write("ranking.html", build_ranking(today, items))
         write("shindan.html", build_shindan(today))
         write("ryou.html", build_ryou(today, items))
-        urls += ["changes.html", "shindan.html", "ryou.html"]
+        urls += ["ranking.html", "changes.html", "shindan.html", "ryou.html"]
         make_ogp("ogp/changes.png", "ふるさと納税\n値下げ情報", f"{stamp}　直近7日の値下げ {downs7}件")
-        make_ogp("ogp/shindan.png", "控除上限の残りから\n返礼品を探す", "合計が残りの金額に近い組み合わせを表示")
+        make_ogp("ogp/shindan.png", "予算から\n返礼品を探す", "予算に近い組み合わせと、予算以内の返礼品")
+        make_ogp("ogp/ranking.png", "ふるさと納税\n人気急上昇ランキング", stamp)
         make_ogp("ogp/ryou.png", "寄付額1万円あたりの量", f"{stamp}　肉・魚介・米・果物・野菜")
         for c in CFG["categories"]:
             write(f"cat/{c['slug']}.html", build_category(c, today, items))
