@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /v/
+Sitemap: https://matanemaboroshi.github.io/kifugaku/sitemap.xml
